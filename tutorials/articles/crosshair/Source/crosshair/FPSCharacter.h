@@ -1,31 +1,35 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Camera/CameraComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "FPSProjectile.h"
 #include "FPSCharacter.generated.h"
 
 UCLASS()
 class CROSSHAIR_API AFPSCharacter : public ACharacter
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-    // Sets default values for this character's properties.
+    // Sets default values for this character's properties
     AFPSCharacter();
 
 protected:
     // Called when the game starts or when spawned
     virtual void BeginPlay() override;
 
-public:
-    // Called every frame.
-    virtual void Tick(float DeltaSeconds) override;
+    // Projectile class to spawn.
+    UPROPERTY(EditAnywhere, Category = Projectile)
+        TSubclassOf<class AFPSProjectile> ProjectileClass;
 
-    // Called to bind functionality to input.
-    virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+public:
+    // Called every frame
+    virtual void Tick(float DeltaTime) override;
+
+    // Called to bind functionality to input
+    virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
     // Handles input for moving forward and backward.
     UFUNCTION()
@@ -43,11 +47,11 @@ public:
     UFUNCTION()
         void StopJump();
 
-    // Function that handles firing projectiles.
+    // Function that fires projectiles.
     UFUNCTION()
         void Fire();
 
-    // FPS camera.
+    // FPS camera
     UPROPERTY(VisibleAnywhere)
         UCameraComponent* FPSCameraComponent;
 
@@ -55,12 +59,7 @@ public:
     UPROPERTY(VisibleDefaultsOnly, Category = Mesh)
         USkeletalMeshComponent* FPSMesh;
 
-    // Gun muzzle's offset from the camera location.
+    // Gun muzzle offset from the camera location.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Gameplay)
         FVector MuzzleOffset;
-
-    // Projectile class to spawn.
-    UPROPERTY(EditDefaultsOnly, Category = Projectile)
-        TSubclassOf<class AFPSProjectile> ProjectileClass;
-
 };

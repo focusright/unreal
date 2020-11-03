@@ -1,14 +1,11 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "FPSHUD.h"
-#include "Engine/Canvas.h"
 
-
-void AFPSHUD::DrawHUD() {
+void AFPSHUD::DrawHUD()
+{
     Super::DrawHUD();
 
-    if (CrosshairTexture) {
+    if (CrosshairTexture)
+    {
         // Find the center of our canvas.
         FVector2D Center(Canvas->ClipX * 0.5f, Canvas->ClipY * 0.5f);
 
