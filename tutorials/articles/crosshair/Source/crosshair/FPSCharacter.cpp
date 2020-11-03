@@ -1,5 +1,6 @@
 #include "FPSCharacter.h"
 #include "FPSProjectile.h"
+//#include "UObject/ObjectMacros.h"
 
 // Sets default values
 AFPSCharacter::AFPSCharacter()
@@ -100,6 +101,7 @@ void AFPSCharacter::Fire()
     // Attempt to fire a projectile.
     if (ProjectileClass)
     {
+        UE_LOG(LogTemp, Warning, TEXT("Hello World!"));
         // Get the camera transform.
         FVector CameraLocation;
         FRotator CameraRotation;
