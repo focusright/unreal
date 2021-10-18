@@ -8,6 +8,9 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "GASAbilitySystemComponent.h"
+#include "GASAttributeSet.h"
+#include "GASGameplayAbility.h"
 
 //////////////////////////////////////////////////////////////////////////
 // AGASCharacter
@@ -45,7 +48,7 @@ AGASCharacter::AGASCharacter()
 
 	AbilitySystemComponent = CreateDefaultSubobject<UGASAbilitySystemComponent>("AbilitySystemComp");
 	AbilitySystemComponent->SetIsReplicated(true);
-	AbilitySystemComponent->SetReplicatedMode(EGameplayEffectReplicationMode::Minimal);
+	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Minimal);
 
 	Attributes = CreateDefaultSubobject<UGASAttributeSet>("Attributes");
 
@@ -80,6 +83,15 @@ void AGASCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInput
 
 	// VR headset functionality
 	PlayerInputComponent->BindAction("ResetVR", IE_Pressed, this, &AGASCharacter::OnResetVR);
+
+	if (AbilitySystemComponent && InputComponent) { //Sometimes AbilitySystemComponent is valid but InputComponent is not, vise versa. This code is repeated in OnRep_PlayerState()
+		const FGameplayAbilityInputBinds Binds("Confirm", "Cancel", "EGASAbilityInputID", 
+			static_cast<int32>(EGASAbilityInputID::Confirm), 
+			static_cast<int32>(EGASAbilityInputID::Cancel)
+		);
+
+		AbilitySystemComponent->BindAbilityActivationToInputComponent(InputComponent, Binds);
+	}
 }
 
 
@@ -92,27 +104,61 @@ void AGASCharacter::InitializeAttributes() {
 		FGameplayEffectContextHandle EffectContext = AbilitySystemComponent->MakeEffectContext();
 		EffectContext.AddSourceObject(this);
 
-		FGameplayEffectHandle SpecHandle = AbilitySystemComponent->MakeOutgoingSpec(DefaultAttributeEffect, 1, EffectContext);
+		FGameplayEffectSpecHandle SpecHandle = AbilitySystemComponent->MakeOutgoingSpec(DefaultAttributeEffect, 1, EffectContext);
+
+		if (SpecHandle.IsValid()) {
+			FActiveGameplayEffectHandle GEHandle = AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+		}
 	}
 }
 
-void AGASCharacter::OnResetVR()
-{
+void AGASCharacter::GiveAbilities() {
+	if (HasAuthority() && AbilitySystemComponent) {
+		for (TSubclassOf<UGASGameplayAbility>& StartupAbility : DefaultAbilities) {
+			AbilitySystemComponent->GiveAbility(
+				FGameplayAbilitySpec(StartupAbility, 1, static_cast<int32>(StartupAbility.GetDefaultObject()->AbilityInputID), this)
+			);
+		}
+	}
+}
+
+void AGASCharacter::PossessedBy(AController* NewController) {
+	Super::PossessedBy(NewController);
+
+	AbilitySystemComponent->InitAbilityActorInfo(this, this);
+	InitializeAttributes();
+	GiveAbilities();
+}
+
+void AGASCharacter::OnRep_PlayerState() {
+	Super::OnRep_PlayerState();
+
+	AbilitySystemComponent->InitAbilityActorInfo(this, this);
+	InitializeAttributes();
+
+	if (AbilitySystemComponent && InputComponent) {
+		const FGameplayAbilityInputBinds Binds("Confirm", "Cancel", "EGASAbilityInputID", 
+			static_cast<int32>(EGASAbilityInputID::Confirm), 
+			static_cast<int32>(EGASAbilityInputID::Cancel)
+		);
+
+		AbilitySystemComponent->BindAbilityActivationToInputComponent(InputComponent, Binds);
+	}
+}
+
+void AGASCharacter::OnResetVR() {
 	UHeadMountedDisplayFunctionLibrary::ResetOrientationAndPosition();
 }
 
-void AGASCharacter::TouchStarted(ETouchIndex::Type FingerIndex, FVector Location)
-{
-		Jump();
+void AGASCharacter::TouchStarted(ETouchIndex::Type FingerIndex, FVector Location) {
+	Jump();
 }
 
-void AGASCharacter::TouchStopped(ETouchIndex::Type FingerIndex, FVector Location)
-{
-		StopJumping();
+void AGASCharacter::TouchStopped(ETouchIndex::Type FingerIndex, FVector Location) {
+	StopJumping();
 }
 
-void AGASCharacter::TurnAtRate(float Rate)
-{
+void AGASCharacter::TurnAtRate(float Rate) {
 	// calculate delta for this frame from the rate information
 	AddControllerYawInput(Rate * BaseTurnRate * GetWorld()->GetDeltaSeconds());
 }
@@ -123,10 +169,8 @@ void AGASCharacter::LookUpAtRate(float Rate)
 	AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
 }
 
-void AGASCharacter::MoveForward(float Value)
-{
-	if ((Controller != NULL) && (Value != 0.0f))
-	{
+void AGASCharacter::MoveForward(float Value) {
+	if ((Controller != NULL) && (Value != 0.0f)) {
 		// find out which way is forward
 		const FRotator Rotation = Controller->GetControlRotation();
 		const FRotator YawRotation(0, Rotation.Yaw, 0);
@@ -137,10 +181,8 @@ void AGASCharacter::MoveForward(float Value)
 	}
 }
 
-void AGASCharacter::MoveRight(float Value)
-{
-	if ( (Controller != NULL) && (Value != 0.0f) )
-	{
+void AGASCharacter::MoveRight(float Value) {
+	if ( (Controller != NULL) && (Value != 0.0f) ) {
 		// find out which way is right
 		const FRotator Rotation = Controller->GetControlRotation();
 		const FRotator YawRotation(0, Rotation.Yaw, 0);

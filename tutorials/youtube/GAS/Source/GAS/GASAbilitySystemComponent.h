@@ -14,4 +14,5 @@ class GAS_API UGASAbilitySystemComponent : public UAbilitySystemComponent
 {
 	GENERATED_BODY()
 	
+	
 };

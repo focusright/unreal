@@ -9,9 +9,9 @@
 #include "GASCharacter.generated.h"
 
 UCLASS(config=Game)
-class AGASCharacter : public ACharacter, public IAbilitySystemInterface
-{
+class AGASCharacter : public ACharacter, public IAbilitySystemInterface {
 	GENERATED_BODY()
+
 
 	/** Camera boom positioning the camera behind the character */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
@@ -41,10 +41,18 @@ public:
 	virtual class UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
 	virtual void InitializeAttributes();
+	virtual void GiveAbilities();
+
+	virtual void PossessedBy(AController* NewController) override;
+	virtual void OnRep_PlayerState() override;
 
 	//Effect that initializes our default attributes
-	UPROPERTY(BlueprintReadOnly, EditDefaultOnly, Category = "GAS")
+	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "GAS")
 	TSubclassOf<class UGameplayEffect> DefaultAttributeEffect;
+
+	//Effect that initializes our default attributes
+	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "GAS")
+	TArray<TSubclassOf<class UGASGameplayAbility>> DefaultAbilities;
 
 protected:
 
