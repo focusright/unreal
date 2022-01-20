@@ -8,10 +8,11 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Net/UnrealNetwork.h"
+#include "Engine/Engine.h"
+#include "ThirdPersonMPProjectile.h"
 
-//////////////////////////////////////////////////////////////////////////
 // AThirdPersonMPCharacter
-
 AThirdPersonMPCharacter::AThirdPersonMPCharacter()
 {
 	// Set size for collision capsule
@@ -45,11 +46,19 @@ AThirdPersonMPCharacter::AThirdPersonMPCharacter()
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named MyCharacter (to avoid direct content references in C++)
+
+	//Initialize the player's Health
+	MaxHealth = 100.0f;
+	CurrentHealth = MaxHealth;
+
+	//Initialize projectile class
+	ProjectileClass = AThirdPersonMPProjectile::StaticClass();
+	//Initialize fire rate
+	FireRate = 0.25f;
+	bIsFiringWeapon = false;
 }
 
-//////////////////////////////////////////////////////////////////////////
 // Input
-
 void AThirdPersonMPCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
 {
 	// Set up gameplay key bindings
@@ -74,8 +83,10 @@ void AThirdPersonMPCharacter::SetupPlayerInputComponent(class UInputComponent* P
 
 	// VR headset functionality
 	PlayerInputComponent->BindAction("ResetVR", IE_Pressed, this, &AThirdPersonMPCharacter::OnResetVR);
-}
 
+	// Handle firing projectiles
+	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &AThirdPersonMPCharacter::StartFire);
+}
 
 void AThirdPersonMPCharacter::OnResetVR()
 {
@@ -137,4 +148,93 @@ void AThirdPersonMPCharacter::MoveRight(float Value)
 		// add movement in that direction
 		AddMovementInput(Direction, Value);
 	}
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+// Replicated Properties
+
+void AThirdPersonMPCharacter::GetLifetimeReplicatedProps(TArray <FLifetimeProperty> & OutLifetimeProps) const
+{
+    Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+    //Replicate current health.
+    DOREPLIFETIME(AThirdPersonMPCharacter, CurrentHealth);
+}
+
+void AThirdPersonMPCharacter::OnHealthUpdate()
+{
+    //Client-specific functionality
+    if (IsLocallyControlled())
+    {
+        FString healthMessage = FString::Printf(TEXT("You now have %f health remaining."), CurrentHealth);
+        GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, healthMessage);
+
+        if (CurrentHealth <= 0)
+        {
+            FString deathMessage = FString::Printf(TEXT("You have been killed."));
+            GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, deathMessage);
+        }
+    }
+
+    //Server-specific functionality
+    if (GetLocalRole() == ROLE_Authority)
+    {
+        FString healthMessage = FString::Printf(TEXT("%s now has %f health remaining."), *GetFName().ToString(), CurrentHealth);
+        GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, healthMessage);
+    }
+
+    //Functions that occur on all machines. 
+    /*  
+        Any special functionality that should occur as a result of damage or death should be placed here. 
+    */
+}
+
+void AThirdPersonMPCharacter::OnRep_CurrentHealth()
+{
+    OnHealthUpdate();
+}
+
+void AThirdPersonMPCharacter::SetCurrentHealth(float healthValue)
+{
+    if (GetLocalRole() == ROLE_Authority)
+    {
+        CurrentHealth = FMath::Clamp(healthValue, 0.f, MaxHealth);
+        OnHealthUpdate();
+    }
+}
+
+float AThirdPersonMPCharacter::TakeDamage(float DamageTaken, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+    float damageApplied = CurrentHealth - DamageTaken;
+    SetCurrentHealth(damageApplied);
+    return damageApplied;
+}
+
+void AThirdPersonMPCharacter::StartFire()
+{
+    if (!bIsFiringWeapon)
+    {
+        bIsFiringWeapon = true;
+        UWorld* World = GetWorld();
+        World->GetTimerManager().SetTimer(FiringTimer, this, &AThirdPersonMPCharacter::StopFire, FireRate, false);
+        HandleFire();
+    }
+}
+
+void AThirdPersonMPCharacter::StopFire()
+{
+    bIsFiringWeapon = false;
+}
+
+void AThirdPersonMPCharacter::HandleFire_Implementation()
+{
+    FVector spawnLocation = GetActorLocation() + ( GetControlRotation().Vector()  * 100.0f ) + (GetActorUpVector() * 50.0f);
+    FRotator spawnRotation = GetControlRotation();
+
+    FActorSpawnParameters spawnParameters;
+    spawnParameters.Instigator = GetInstigator();
+    spawnParameters.Owner = this;
+
+    AThirdPersonMPProjectile* spawnedProjectile = GetWorld()->SpawnActor<AThirdPersonMPProjectile>(spawnLocation, spawnRotation, spawnParameters);
 }
