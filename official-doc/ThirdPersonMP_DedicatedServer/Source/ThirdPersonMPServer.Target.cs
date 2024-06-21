@@ -6,7 +6,7 @@ public class ThirdPersonMPServerTarget : TargetRules //Change this line accordin
     public ThirdPersonMPServerTarget(TargetInfo Target) : base(Target) //Change this line according to the name of your project
     {
         Type = TargetType.Server;
-        DefaultBuildSettings = BuildSettingsVersion.V2;
+        DefaultBuildSettings = BuildSettingsVersion.Latest;
         ExtraModuleNames.Add("ThirdPersonMP"); //Change this line according to the name of your project
     }
 }
