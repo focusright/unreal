@@ -3,12 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Character.h"
+//#include "GameFramework/Character.h"
+#include "GameFramework/DefaultPawn.h"
 #include "GenericTeamAgentInterface.h"
 #include "STCharacter.generated.h"
 
 UCLASS()
-class STATETREE_API ASTCharacter : public ACharacter, public IGenericTeamAgentInterface {
+class STATETREE_API ASTCharacter : public ADefaultPawn, public IGenericTeamAgentInterface {
 	GENERATED_BODY()
 
 public:
